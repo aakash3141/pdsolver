@@ -1,0 +1,143 @@
+#include <stdio.h>
+#include <math.h>
+#include <conio.h>
+#include <stdlib.h>
+#pragma warning(disable:4996) //tells compiler to stop throwing errors
+#define PI 3.14159265 //C doesn't know the value of pi apparently
+
+double angle(double theta, int conversionflag) //converts angle to rad or deg (conversionflag is 0 for rad, 1 for deg)
+{
+	switch (conversionflag)
+	{
+	case 0:
+		return theta * PI / 180;
+	case 1:
+		return theta * 180 / PI;
+	default:
+		return -1;
+	}
+}
+
+void filename(double l, double g, double theta0, double w0, double c, double dt, double t, char* name)
+{
+	sprintf(name, "pdsolved_l=%.2lf_g=%.2lf_angle=%.2lf_w=%.2lf_c=%.2lf_dt=%lf_wnd=%.2lf.csv", l, g, theta0, w0, c, dt, t); //creates filename
+}
+
+void dsolve(double l, double g, double theta0, double w0, double c, double dt, double t) //solves diffeq
+{
+	char name[512];
+	filename(l, g, angle(theta0, 1), angle(w0, 1), c, dt, t, name); //create filename with initial values
+	FILE* csv; //csv file setup
+	csv = fopen(name, "w");
+	
+	double theta, w, time = 0; //sets up variables for iteration using initial params, time is for x-coordinate
+	theta = theta0;
+	w = w0;
+	
+	printf("(t, theta)\n");
+	printf("(%d, %lf)\n", 0, angle(theta, 1)); //initial values
+	
+	fprintf(csv, "t, angle\n"); //prints same stuff to csv
+	fprintf(csv, "%d, %lf\n", 0, angle(theta, 1));
+	
+	for (int i = 1; i <= t / dt; i++)
+	{
+		double btheta = theta; //buffer values so euler system of eqns can use previous value of variable
+		double bw = w;
+		w += ((g / l) * sin(btheta) - (c * bw)) * dt; //euler magic
+		theta += bw * dt;
+		time = i * dt; //increment time
+		printf("(%lf, %lf)\n", time, angle(theta, 1)); //print the good stuff to console screen (time, angle), constant flow of numbers to assure user that the computer hasn't frozen and is about to explode
+		fprintf(csv, "%lf, %lf\n", time, angle(theta, 1)); //copy it to csv
+	}
+
+	fclose(csv); //close csv file
+}
+
+int input(double *l, double *g, double *theta0, double *w0, double *c, double *t, double* dt) //receptionist function; l=pendulum length, g=signed accl. of gravity, theta0=initial angle, w0=initial angular velocity, c=damping coeff, t=desired time window, dt=time step
+{
+	printf("Welcome!\nEnter length of pendulum (m): ");
+	if (scanf("%lf", l) == 1) //a bunch of error checking
+	{
+		printf("Enter value of gravity with sign (m/s^2): "); //go to next prompt
+	}
+	else
+	{
+		return -1; //throw massive invalid input error, handle it in main
+	}
+	if (scanf("%lf", g) == 1)
+	{
+		printf("Enter initial pendulum angle (deg): ");
+	}
+	else
+	{
+		return -1;
+	}
+	if (scanf("%lf", theta0) == 1)
+	{
+		printf("Enter initial angular velocity (deg/s): ");
+	}
+	else
+	{
+		return -1;
+	}
+	if (scanf("%lf", w0) == 1)
+	{
+		printf("Enter damping coefficient (1/s): ");
+	}
+	else
+	{
+		return -1;
+	}
+	if (scanf("%lf", c) == 1)
+	{
+		printf("Enter time window (t/dt must be <=1000000) to calculate for (s): ");
+	}
+	else
+	{
+		return -1;
+	}
+	if (scanf("%lf", t) == 1)
+	{
+		printf("Enter the desired time step in seconds (<=0.001s usually works well): ");
+	}
+	if (scanf("%lf", dt) != 1)
+	{
+		return -1;
+	}
+
+	if (*t/(*dt) <= 1000000) //make sure Microsoft Excel doesn't explode with line count
+	{
+		printf("All the required information has been collected to solve the pendulum.\nPress any key to solve...");
+		getch();
+		system("cls");
+		return 1; //success
+	}
+	else
+	{
+		printf("t/dt exceeds 1000000!\nPlease restart the app and try again...\nPress any key to exit."); //the user failed to follow directions
+		getch();
+		return 0; //limit exceeded
+	}
+}
+
+int main(void)
+{
+	system("cls");
+	double l, g, theta0, w0, c, t, dt;
+	l = g = theta0 = w0 = c = t = dt = 0;
+	int returncode = input(&l, &g, &theta0, &w0, &c, &t, &dt); //go to receptionist, get result (all variable names are given context in the input() function)
+
+	if (returncode == 1) //check to make sure receptionist succeeded
+	{
+		dsolve(fabs(l), g, angle(theta0, 0), angle(w0, 0), fabs(c), fabs(dt), fabs(t)); //solve diffeq
+		printf("Done!\n");
+	}
+	else if (returncode == -1) //user tried to enter something invalid
+	{
+		printf("Invalid input... please restart the app and try again.\nPress any key to exit."); //catches error, stops app from blowing up
+		getch();
+	}
+	
+	return 0;
+}
